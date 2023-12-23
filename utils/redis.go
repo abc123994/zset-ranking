@@ -1,17 +1,13 @@
 package utils
 
 import (
+	"encoding/json"
 	"fmt"
 
 	"github.com/gomodule/redigo/redis"
 )
 
 var pool *redis.Pool
-
-type MemberScore struct {
-	Member string
-	Score  float64
-}
 
 func InitRedis() {
 	pool = &redis.Pool{
@@ -22,7 +18,83 @@ func InitRedis() {
 		},
 	}
 }
-func GetAllScoresWithMembers(zsetKey string) ([]MemberScore, error) {
+
+type Ranking struct {
+	Rank []Data            `json:"leaderboard"`
+	Key  map[string]Member `json:"customer"`
+}
+type Data struct {
+	Rank   int32  `json:"rank"`
+	Score  int32  `json:"score"`
+	Member string `json:"member"`
+}
+type Member struct {
+	Score int32 `json:"score"`
+	Rank  int32 `json:"rank"`
+}
+
+func CacheLeaderBoards(key string, zkey string, ttl int32) (rank Ranking) {
+
+	data, err := getLeaderBoards(key)
+	if err != nil && data != "" {
+		json.Unmarshal([]byte(data), &rank)
+	} else {
+
+		sc, _ := getAllScoresWithMembers(zkey)
+		do_rank := Ranking{}
+		do_rank.Key = map[string]Member{}
+		_current := 0
+		_score := 1
+
+		for _, e := range sc {
+			if e.Score != float64(_score) {
+				_score = int(e.Score)
+				_current++
+				_tmp := Data{Rank: int32(_current), Score: int32(e.Score), Member: e.Member}
+				do_rank.Key[e.Member] = Member{Score: int32(e.Score), Rank: int32(_current)}
+				do_rank.Rank = append(do_rank.Rank, _tmp)
+			} else {
+				_tmp := Data{Rank: int32(_current), Score: int32(e.Score), Member: e.Member}
+				do_rank.Key[e.Member] = Member{Score: int32(e.Score), Rank: int32(_current)}
+				do_rank.Rank = append(do_rank.Rank, _tmp)
+			}
+
+		}
+		b, err := json.Marshal(&do_rank)
+
+		if err != nil {
+			fmt.Println(err)
+
+		}
+
+		setLeaderBoards("Leaderboard", string(b), ttl)
+		rank = do_rank
+	}
+	return
+}
+func setLeaderBoards(key string, val string, ttl int32) {
+
+	conn := pool.Get()
+	defer conn.Close()
+	conn.Do("SET", key, val)
+	conn.Do("ExPire", key, ttl)
+}
+func getLeaderBoards(key string) (string, error) {
+
+	conn := pool.Get()
+	defer conn.Close()
+	data, err := redis.Values(conn.Do("get", key))
+	out, err := redis.String(data, err)
+
+	return out, err
+}
+
+type MemberScore struct {
+	Member string
+	Score  float64
+}
+
+func getAllScoresWithMembers(zsetKey string) ([]MemberScore, error) {
 	conn := pool.Get()
 	defer conn.Close()
 
