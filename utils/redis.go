@@ -33,7 +33,14 @@ type Member struct {
 	Rank  int32 `json:"rank"`
 }
 
-func CacheLeaderBoards(key string, zkey string, ttl int32) (rank Ranking) {
+/*
+		{
+		  leaderboard:[{0} {1} {2}]        //get the board
+		  customer: "a":{},"b":{},"c":{}   //mapping for query self
+
+	    }
+*/
+func CacheLeaderBoards(key string, zkey string) (rank Ranking) {
 
 	data, err := getLeaderBoards(key)
 	if err != nil && data != "" {
@@ -67,7 +74,7 @@ func CacheLeaderBoards(key string, zkey string, ttl int32) (rank Ranking) {
 
 		}
 
-		setLeaderBoards("Leaderboard", string(b), ttl)
+		setLeaderBoards("Leaderboard", string(b), 300)
 		rank = do_rank
 	}
 	return

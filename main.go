@@ -9,6 +9,6 @@ func main() {
 
 	utils.InitRedis()
 
-	data := utils.CacheLeaderBoards("leaderboards", "myzset", 300)
+	data := utils.CacheLeaderBoards("leaderboards", "myzset") // leaderboards 和 zset 會因為活動改變
 	log.Println(data)
 }
