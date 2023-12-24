@@ -43,7 +43,8 @@ type Member struct {
 func CacheLeaderBoards(key string, zkey string) (rank Ranking) {
 
 	data, err := getLeaderBoards(key)
-	if err != nil && data != "" {
+
+	if err == nil && data != "" {
 		json.Unmarshal([]byte(data), &rank)
 	} else {
 
@@ -74,7 +75,7 @@ func CacheLeaderBoards(key string, zkey string) (rank Ranking) {
 
 		}
 
-		setLeaderBoards("Leaderboard", string(b), 300)
+		setLeaderBoards(key, string(b), 300)
 		rank = do_rank
 	}
 	return
@@ -90,7 +91,8 @@ func getLeaderBoards(key string) (string, error) {
 
 	conn := pool.Get()
 	defer conn.Close()
-	data, err := redis.Values(conn.Do("get", key))
+	data, err := conn.Do("GET", key)
+
 	out, err := redis.String(data, err)
 
 	return out, err
